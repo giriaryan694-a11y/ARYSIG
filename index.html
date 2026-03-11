@@ -2,300 +2,559 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ARYSIG</title>
-<link rel="icon" href="data:,">
-
+<title>ARYSIG | File Signature Toolkit</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --green: #00ff9c;
+    --green-dim: #00cc7a;
+    --green-glow: rgba(0,255,156,0.15);
+    --bg: #060909;
+    --panel: #0a0f0d;
+    --border: rgba(0,255,156,0.3);
+    --red: #ff3c5a;
+    --yellow: #ffd600;
+  }
 
-body{
-background:#0b0b0b;
-color:#00ff9c;
-font-family:monospace;
-text-align:center;
-margin:0;
-padding:20px;
-}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-.light{
-background:#f4f4f4;
-color:#111;
-}
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    padding: 30px 20px 60px;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(0,255,156,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(0,255,156,0.03) 0%, transparent 50%);
+  }
 
-h1{
-letter-spacing:3px;
-}
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
 
-.container{
-max-width:900px;
-margin:auto;
-border:1px solid #00ff9c;
-padding:20px;
-box-shadow:0 0 10px #00ff9c;
-}
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: 10px;
+    text-shadow: 0 0 20px var(--green), 0 0 60px rgba(0,255,156,0.3);
+    animation: flicker 6s infinite;
+  }
 
-.dropzone{
-border:2px dashed #00ff9c;
-padding:30px;
-margin:15px 0;
-cursor:pointer;
-}
+  .subtitle {
+    font-size: 12px;
+    letter-spacing: 4px;
+    opacity: 0.5;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
 
-#hexView{
-background:#111;
-padding:15px;
-margin-top:10px;
-max-height:300px;
-overflow:auto;
-text-align:left;
-font-size:13px;
-}
+  @keyframes flicker {
+    0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.85} 94%{opacity:1} 97%{opacity:1} 98%{opacity:0.9} 99%{opacity:1}
+  }
 
-.light #hexView{
-background:#eee;
-}
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 
-button,select{
-padding:10px;
-margin:5px;
-cursor:pointer;
-font-weight:bold;
-}
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0,255,156,0.05), inset 0 0 40px rgba(0,0,0,0.4);
+  }
 
-.hexEdit{
-width:40px;
-margin:2px;
-}
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+  }
 
-footer{
-margin-top:25px;
-opacity:0.8;
-}
+  .panel-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    opacity: 0.5;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
 
+  /* Dropzone */
+  .dropzone {
+    border: 2px dashed rgba(0,255,156,0.35);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: rgba(0,255,156,0.02);
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--green);
+    background: var(--green-glow);
+    box-shadow: inset 0 0 30px rgba(0,255,156,0.08);
+  }
+
+  .dropzone .icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+    opacity: 0.6;
+  }
+
+  .dropzone p {
+    font-size: 13px;
+    opacity: 0.7;
+    margin-bottom: 14px;
+  }
+
+  #fileInput { display: none; }
+
+  .btn-browse {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 8px 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-browse:hover {
+    background: var(--green);
+    color: #000;
+  }
+
+  /* File info */
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0,255,156,0.05);
+    border: 1px solid rgba(0,255,156,0.2);
+    font-size: 13px;
+  }
+
+  .file-info.show { display: flex; }
+  .file-badge { opacity: 0.5; font-size: 11px; }
+
+  .file-info .file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size { opacity: 0.6; font-size: 11px; }
+
+  /* Hex view */
+  #hexView {
+    background: #050807;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.8;
+    letter-spacing: 1px;
+    min-height: 60px;
+    border: 1px solid rgba(0,255,156,0.15);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--green-dim);
+  }
+
+  .hex-byte { display: inline-block; margin-right: 4px; }
+  .hex-byte.sig-byte { color: var(--yellow); font-weight: bold; }
+  .hex-placeholder { opacity: 0.3; font-style: italic; }
+
+  /* Sig selector */
+  .sig-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .sig-card {
+    border: 1px solid rgba(0,255,156,0.2);
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(0,255,156,0.02);
+    position: relative;
+  }
+
+  .sig-card:hover {
+    border-color: var(--green);
+    background: rgba(0,255,156,0.07);
+  }
+
+  .sig-card.active {
+    border-color: var(--green);
+    background: rgba(0,255,156,0.1);
+    box-shadow: 0 0 12px rgba(0,255,156,0.15);
+  }
+
+  .sig-card .sig-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .sig-card .sig-bytes {
+    font-size: 10px;
+    opacity: 0.5;
+    letter-spacing: 1px;
+  }
+
+  /* Actions */
+  .actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  .btn {
+    flex: 1;
+    min-width: 160px;
+    padding: 14px 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0,255,156,0.3);
+  }
+
+  .btn-primary:hover {
+    background: #fff;
+    box-shadow: 0 0 30px rgba(0,255,156,0.5);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--green);
+    border: 1px solid var(--green);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(0,255,156,0.1);
+    box-shadow: 0 0 15px rgba(0,255,156,0.2);
+  }
+
+  .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Status log */
+  #statusLog {
+    background: #050807;
+    border: 1px solid rgba(0,255,156,0.15);
+    padding: 12px 16px;
+    font-size: 12px;
+    line-height: 1.8;
+    min-height: 48px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .log-entry { opacity: 0.8; }
+  .log-entry.ok::before { content: "[OK] "; color: var(--green); }
+  .log-entry.err::before { content: "[ERR] "; color: var(--red); }
+  .log-entry.info::before { content: "[>>] "; color: var(--yellow); }
+
+  /* Modified hex highlight */
+  #modHexView {
+    background: #050807;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.8;
+    letter-spacing: 1px;
+    min-height: 60px;
+    border: 1px solid rgba(0,255,156,0.15);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: none;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 50px;
+    font-size: 11px;
+    opacity: 0.35;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Scan line effect */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
 </style>
 </head>
-
 <body>
 
-<h1>ARYSIG</h1>
+<header>
+  <h1>ARYSIG</h1>
+  <p class="subtitle">File Signature Toolkit</p>
+</header>
 
 <div class="container">
 
-<div class="dropzone" id="dropzone">
-Drop file here or click to upload
-<input type="file" id="fileInput" hidden>
+  <!-- Upload Panel -->
+  <div class="panel">
+    <div class="panel-label">01 // Load Target File</div>
+    <div class="dropzone" id="dropzone">
+      <div class="icon">⬡</div>
+      <p>Drag & drop any file here</p>
+      <button class="btn-browse" onclick="document.getElementById('fileInput').click()">Browse File</button>
+      <input type="file" id="fileInput">
+    </div>
+    <div class="file-info" id="fileInfo">
+      <span>▶</span>
+      <span class="file-name" id="fileName">—</span>
+      <span class="file-size" id="fileSize">—</span>
+      <span class="file-badge">LOADED</span>
+    </div>
+  </div>
+
+  <!-- Hex View -->
+  <div class="panel">
+    <div class="panel-label">02 // Original Magic Bytes (first 32 bytes)</div>
+    <div id="hexView"><span class="hex-placeholder">// awaiting file input...</span></div>
+  </div>
+
+  <!-- Signature Select -->
+  <div class="panel">
+    <div class="panel-label">03 // Select Target Signature</div>
+    <div class="sig-grid" id="sigGrid">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- Modified Hex View -->
+  <div class="panel" id="modPanel" style="display:none">
+    <div class="panel-label">04 // Modified Header Preview</div>
+    <div id="modHexView"></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="panel">
+    <div class="panel-label">05 // Actions</div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btnConvert" onclick="convertSignature()" disabled>⟳ Convert Signature</button>
+      <button class="btn btn-secondary" id="btnDownload" onclick="downloadFile()" disabled>↓ Download Modified</button>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="panel">
+    <div class="panel-label">// System Log</div>
+    <div id="statusLog"><span class="log-entry info">System ready. Load a file to begin.</span></div>
+  </div>
+
 </div>
 
-<p id="fileName"></p>
-
-<h3>Detected Type</h3>
-<p id="detectedType">Unknown</p>
-
-<h3>Hex Viewer</h3>
-<div id="hexView"></div>
-
-<h3>Edit First Bytes</h3>
-<div id="hexEditor"></div>
-
-<h3>Change File Signature</h3>
-
-<select id="sigSelect">
-<option>PNG</option>
-<option>GIF</option>
-<option>JPEG</option>
-<option>PDF</option>
-</select>
-
-<br>
-
-<button onclick="changeSignature()">Apply Signature</button>
-<button onclick="downloadFile()">Download File</button>
-<button onclick="toggleTheme()">Toggle Theme</button>
-
-</div>
-
-<footer>
-Made by Aryan Giri
-</footer>
+<footer>Made by Aryan Giri &nbsp;·&nbsp; ARYSIG v2.0</footer>
 
 <script>
-
-let originalBuffer
-let workingBytes
-
-const signatures = {
-
-PNG:[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A],
-GIF:[0x47,0x49,0x46,0x38,0x39,0x61],
-JPEG:[0xFF,0xD8,0xFF],
-PDF:[0x25,0x50,0x44,0x46]
-
-}
-
-const knownTypes={
-"89504e47":"PNG",
-"47494638":"GIF",
-"ffd8ff":"JPEG",
-"25504446":"PDF"
-}
-
-const fileInput=document.getElementById("fileInput")
-const dropzone=document.getElementById("dropzone")
-
-dropzone.onclick=()=>fileInput.click()
-
-fileInput.addEventListener("change",loadFile)
-
-dropzone.addEventListener("dragover",e=>e.preventDefault())
-
-dropzone.addEventListener("drop",e=>{
-e.preventDefault()
-fileInput.files=e.dataTransfer.files
-loadFile()
-})
-
-function loadFile(){
-
-const file=fileInput.files[0]
-if(!file)return
-
-document.getElementById("fileName").innerText=file.name
-
-const reader=new FileReader()
-
-reader.onload=e=>{
-originalBuffer=e.target.result
-workingBytes=new Uint8Array(originalBuffer)
-
-detectType()
-showHex()
-createEditor()
-}
-
-reader.readAsArrayBuffer(file)
-
-}
-
-function detectType(){
-
-let hex=""
-
-for(let i=0;i<4;i++){
-hex+=workingBytes[i].toString(16).padStart(2,"0")
-}
-
-let type="Unknown"
-
-for(let sig in knownTypes){
-
-if(hex.startsWith(sig)) type=knownTypes[sig]
-
-}
-
-document.getElementById("detectedType").innerText=type
-
-}
-
-function showHex(){
-
-let output=""
-
-const length=Math.min(workingBytes.length,256)
-
-for(let i=0;i<length;i+=16){
-
-let row=i.toString(16).padStart(8,"0")+"  "
-
-for(let j=0;j<16;j++){
-
-if(i+j<length){
-
-row+=workingBytes[i+j].toString(16).padStart(2,"0")+" "
-
-}
-
-}
-
-output+=row+"\n"
-
-}
-
-document.getElementById("hexView").innerText=output
-
-}
-
-function createEditor(){
-
-const editor=document.getElementById("hexEditor")
-
-editor.innerHTML=""
-
-for(let i=0;i<16;i++){
-
-let input=document.createElement("input")
-
-input.className="hexEdit"
-input.value=workingBytes[i].toString(16).padStart(2,"0")
-
-input.onchange=()=>{
-workingBytes[i]=parseInt(input.value,16)
-showHex()
-detectType()
-}
-
-editor.appendChild(input)
-
-}
-
-}
-
-function changeSignature(){
-
-const type=document.getElementById("sigSelect").value
-const sig=signatures[type]
-
-for(let i=0;i<sig.length;i++){
-
-workingBytes[i]=sig[i]
-
-}
-
-showHex()
-detectType()
-createEditor()
-
-}
-
-function downloadFile(){
-
-const blob=new Blob([workingBytes])
-
-const url=URL.createObjectURL(blob)
-
-const a=document.createElement("a")
-
-a.href=url
-a.download="arysig_modified"
-
-a.click()
-
-}
-
-function toggleTheme(){
-
-document.body.classList.toggle("light")
-
-localStorage.setItem("arysigTheme",
-document.body.classList.contains("light"))
-
-}
-
-if(localStorage.getItem("arysigTheme")==="true"){
-
-document.body.classList.add("light")
-
-}
-
+  let originalBuffer = null;
+  let modifiedBuffer = null;
+  let selectedSig = 'PNG';
+
+  const signatures = {
+    PNG:  { bytes: [0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A], ext: '.png' },
+    GIF:  { bytes: [0x47,0x49,0x46,0x38,0x39,0x61],             ext: '.gif' },
+    JPEG: { bytes: [0xFF,0xD8,0xFF,0xE0],                        ext: '.jpg' },
+    PDF:  { bytes: [0x25,0x50,0x44,0x46,0x2D],                  ext: '.pdf' },
+    ZIP:  { bytes: [0x50,0x4B,0x03,0x04],                        ext: '.zip' },
+    ELF:  { bytes: [0x7F,0x45,0x4C,0x46],                        ext: '.elf' },
+  };
+
+  // Build sig cards
+  const sigGrid = document.getElementById('sigGrid');
+  Object.entries(signatures).forEach(([name, info]) => {
+    const card = document.createElement('div');
+    card.className = 'sig-card' + (name === selectedSig ? ' active' : '');
+    card.dataset.sig = name;
+    card.innerHTML = `
+      <div class="sig-name">${name}</div>
+      <div class="sig-bytes">${info.bytes.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ')}</div>
+    `;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.sig-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      selectedSig = name;
+      log(`Target signature set: ${name}`, 'info');
+    });
+    sigGrid.appendChild(card);
+  });
+
+  // File input
+  document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  // Drag and drop
+  const dropzone = document.getElementById('dropzone');
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const files = e.dataTransfer.files;
+    if (files && files[0]) handleFile(files[0]);
+  });
+
+  function handleFile(file) {
+    if (!file) { log('No file selected', 'err'); return; }
+
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = formatSize(file.size);
+    document.getElementById('fileInfo').classList.add('show');
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      try {
+        originalBuffer = event.target.result;
+        if (!originalBuffer || originalBuffer.byteLength === 0) {
+          log('File appears to be empty', 'err');
+          return;
+        }
+        modifiedBuffer = null;
+        document.getElementById('btnConvert').disabled = false;
+        document.getElementById('btnDownload').disabled = true;
+        document.getElementById('modPanel').style.display = 'none';
+        showHex(originalBuffer, 'hexView', []);
+        log(`File loaded: ${file.name} (${formatSize(file.size)})`, 'ok');
+      } catch(err) {
+        log('Error reading file: ' + err.message, 'err');
+      }
+    };
+    reader.onerror = function() {
+      log('FileReader error: could not read file', 'err');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function showHex(buffer, elementId, highlightIndices) {
+    const bytes = new Uint8Array(buffer);
+    const len = Math.min(32, bytes.length); // BUGFIX: guard against short files
+    const container = document.getElementById(elementId);
+    container.innerHTML = '';
+
+    for (let i = 0; i < len; i++) {
+      const span = document.createElement('span');
+      span.className = 'hex-byte' + (highlightIndices.includes(i) ? ' sig-byte' : '');
+      span.textContent = bytes[i].toString(16).padStart(2, '0').toUpperCase() + ' ';
+      container.appendChild(span);
+    }
+
+    if (bytes.length > 32) {
+      const more = document.createElement('span');
+      more.style.opacity = '0.3';
+      more.textContent = `... (+${bytes.length - 32} more bytes)`;
+      container.appendChild(more);
+    }
+  }
+
+  function convertSignature() {
+    if (!originalBuffer) { log('No file loaded', 'err'); return; }
+
+    const sig = signatures[selectedSig];
+    if (!sig) { log('Unknown signature type', 'err'); return; }
+
+    const srcBytes = new Uint8Array(originalBuffer);
+    const modified = new Uint8Array(srcBytes); // copy
+
+    if (modified.length < sig.bytes.length) {
+      log(`File too small (${modified.length} bytes) for ${selectedSig} signature (${sig.bytes.length} bytes needed)`, 'err');
+      return;
+    }
+
+    for (let i = 0; i < sig.bytes.length; i++) {
+      modified[i] = sig.bytes[i];
+    }
+
+    modifiedBuffer = modified;
+
+    const highlightIdx = sig.bytes.map((_, i) => i);
+    document.getElementById('modPanel').style.display = 'block';
+    document.getElementById('modHexView').style.display = 'block';
+    showHex(modifiedBuffer, 'modHexView', highlightIdx);
+
+    document.getElementById('btnDownload').disabled = false;
+    log(`Signature overwritten with ${selectedSig} magic bytes (${sig.bytes.length} bytes)`, 'ok');
+  }
+
+  function downloadFile() {
+    if (!modifiedBuffer) { log('Run conversion first', 'err'); return; }
+
+    const sig = signatures[selectedSig];
+    const ext = sig ? sig.ext : '';
+    const originalName = document.getElementById('fileName').textContent || 'file';
+    const baseName = originalName.replace(/\.[^/.]+$/, '');
+    const outName = `arysig_${baseName}${ext}`;
+
+    const blob = new Blob([modifiedBuffer], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = outName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // cleanup
+
+    log(`Downloaded as: ${outName}`, 'ok');
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1048576).toFixed(2) + ' MB';
+  }
+
+  function log(msg, type = 'info') {
+    const log = document.getElementById('statusLog');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    const ts = new Date().toLocaleTimeString('en-US', {hour12:false});
+    entry.textContent = `[${ts}] ${msg}`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
 </script>
-
 </body>
 </html>
