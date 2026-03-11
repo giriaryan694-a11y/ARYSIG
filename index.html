@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ARYSIG | File Signature Toolkit</title>
+
+<style>
+
+body{
+background:#0b0b0b;
+color:#00ff9c;
+font-family:monospace;
+text-align:center;
+padding:20px;
+}
+
+h1{
+font-size:32px;
+letter-spacing:2px;
+}
+
+.container{
+border:1px solid #00ff9c;
+padding:20px;
+margin:auto;
+width:80%;
+max-width:700px;
+box-shadow:0 0 10px #00ff9c;
+}
+
+button{
+background:#00ff9c;
+color:#000;
+border:none;
+padding:10px 20px;
+margin:10px;
+cursor:pointer;
+font-weight:bold;
+}
+
+select{
+padding:8px;
+margin:10px;
+}
+
+#hexView{
+background:#111;
+padding:10px;
+margin-top:15px;
+max-height:150px;
+overflow:auto;
+border:1px solid #00ff9c;
+}
+
+.dropzone{
+border:2px dashed #00ff9c;
+padding:25px;
+margin:15px;
+}
+
+footer{
+margin-top:30px;
+font-size:14px;
+opacity:0.8;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>ARYSIG</h1>
+
+<div class="container">
+
+<div class="dropzone" id="dropzone">
+Drag & Drop File or Select
+<br><br>
+<input type="file" id="fileInput">
+</div>
+
+<p id="fileName"></p>
+
+<h3>Original Magic Bytes</h3>
+<div id="hexView"></div>
+
+<h3>Select Target Signature</h3>
+
+<select id="sigSelect">
+<option value="PNG">PNG</option>
+<option value="GIF">GIF</option>
+<option value="JPEG">JPEG</option>
+<option value="PDF">PDF</option>
+</select>
+
+<br>
+
+<button onclick="convertSignature()">Convert Signature</button>
+<button onclick="downloadFile()">Download File</button>
+
+</div>
+
+<footer>
+Made by Aryan Giri
+</footer>
+
+<script>
+
+let originalBuffer;
+let modifiedBuffer;
+
+const signatures = {
+
+PNG:[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A],
+
+GIF:[0x47,0x49,0x46,0x38,0x39,0x61],
+
+JPEG:[0xFF,0xD8,0xFF],
+
+PDF:[0x25,0x50,0x44,0x46]
+
+};
+
+const fileInput = document.getElementById("fileInput");
+
+fileInput.addEventListener("change",handleFile);
+
+function handleFile(e){
+
+const file = e.target.files[0];
+
+document.getElementById("fileName").innerText=file.name;
+
+const reader=new FileReader();
+
+reader.onload=function(event){
+
+originalBuffer=event.target.result;
+
+showHex(originalBuffer);
+
+};
+
+reader.readAsArrayBuffer(file);
+
+}
+
+function showHex(buffer){
+
+const bytes=new Uint8Array(buffer);
+
+let hex="";
+
+for(let i=0;i<32;i++){
+
+hex+=bytes[i].toString(16).padStart(2,"0")+" ";
+
+}
+
+document.getElementById("hexView").innerText=hex;
+
+}
+
+function convertSignature(){
+
+if(!originalBuffer){
+
+alert("Upload file first");
+
+return;
+
+}
+
+const type=document.getElementById("sigSelect").value;
+
+const sig=signatures[type];
+
+let bytes=new Uint8Array(originalBuffer);
+
+let modified=new Uint8Array(bytes);
+
+for(let i=0;i<sig.length;i++){
+
+modified[i]=sig[i];
+
+}
+
+modifiedBuffer=modified;
+
+alert("Signature modified");
+
+}
+
+function downloadFile(){
+
+if(!modifiedBuffer){
+
+alert("Convert signature first");
+
+return;
+
+}
+
+const blob=new Blob([modifiedBuffer]);
+
+const url=URL.createObjectURL(blob);
+
+const a=document.createElement("a");
+
+a.href=url;
+
+a.download="arysig_modified";
+
+a.click();
+
+}
+
+const dropzone=document.getElementById("dropzone");
+
+dropzone.addEventListener("dragover",(e)=>{
+
+e.preventDefault();
+
+});
+
+dropzone.addEventListener("drop",(e)=>{
+
+e.preventDefault();
+
+fileInput.files=e.dataTransfer.files;
+
+handleFile({target:{files:e.dataTransfer.files}});
+
+});
+
+</script>
+
+</body>
+</html>
