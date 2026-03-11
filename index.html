@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ARYSIG | File Signature Toolkit</title>
+<title>ARYSIG</title>
+<link rel="icon" href="data:,">
 
 <style>
 
@@ -11,56 +12,62 @@ background:#0b0b0b;
 color:#00ff9c;
 font-family:monospace;
 text-align:center;
+margin:0;
 padding:20px;
+}
+
+.light{
+background:#f4f4f4;
+color:#111;
 }
 
 h1{
-font-size:32px;
-letter-spacing:2px;
+letter-spacing:3px;
 }
 
 .container{
+max-width:900px;
+margin:auto;
 border:1px solid #00ff9c;
 padding:20px;
-margin:auto;
-width:80%;
-max-width:700px;
 box-shadow:0 0 10px #00ff9c;
-}
-
-button{
-background:#00ff9c;
-color:#000;
-border:none;
-padding:10px 20px;
-margin:10px;
-cursor:pointer;
-font-weight:bold;
-}
-
-select{
-padding:8px;
-margin:10px;
-}
-
-#hexView{
-background:#111;
-padding:10px;
-margin-top:15px;
-max-height:150px;
-overflow:auto;
-border:1px solid #00ff9c;
 }
 
 .dropzone{
 border:2px dashed #00ff9c;
-padding:25px;
-margin:15px;
+padding:30px;
+margin:15px 0;
+cursor:pointer;
+}
+
+#hexView{
+background:#111;
+padding:15px;
+margin-top:10px;
+max-height:300px;
+overflow:auto;
+text-align:left;
+font-size:13px;
+}
+
+.light #hexView{
+background:#eee;
+}
+
+button,select{
+padding:10px;
+margin:5px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.hexEdit{
+width:40px;
+margin:2px;
 }
 
 footer{
-margin-top:30px;
-font-size:14px;
+margin-top:25px;
 opacity:0.8;
 }
 
@@ -74,29 +81,35 @@ opacity:0.8;
 <div class="container">
 
 <div class="dropzone" id="dropzone">
-Drag & Drop File or Select
-<br><br>
-<input type="file" id="fileInput">
+Drop file here or click to upload
+<input type="file" id="fileInput" hidden>
 </div>
 
 <p id="fileName"></p>
 
-<h3>Original Magic Bytes</h3>
+<h3>Detected Type</h3>
+<p id="detectedType">Unknown</p>
+
+<h3>Hex Viewer</h3>
 <div id="hexView"></div>
 
-<h3>Select Target Signature</h3>
+<h3>Edit First Bytes</h3>
+<div id="hexEditor"></div>
+
+<h3>Change File Signature</h3>
 
 <select id="sigSelect">
-<option value="PNG">PNG</option>
-<option value="GIF">GIF</option>
-<option value="JPEG">JPEG</option>
-<option value="PDF">PDF</option>
+<option>PNG</option>
+<option>GIF</option>
+<option>JPEG</option>
+<option>PDF</option>
 </select>
 
 <br>
 
-<button onclick="convertSignature()">Convert Signature</button>
+<button onclick="changeSignature()">Apply Signature</button>
 <button onclick="downloadFile()">Download File</button>
+<button onclick="toggleTheme()">Toggle Theme</button>
 
 </div>
 
@@ -106,132 +119,181 @@ Made by Aryan Giri
 
 <script>
 
-let originalBuffer;
-let modifiedBuffer;
+let originalBuffer
+let workingBytes
 
 const signatures = {
 
 PNG:[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A],
-
 GIF:[0x47,0x49,0x46,0x38,0x39,0x61],
-
 JPEG:[0xFF,0xD8,0xFF],
-
 PDF:[0x25,0x50,0x44,0x46]
 
-};
+}
 
-const fileInput = document.getElementById("fileInput");
+const knownTypes={
+"89504e47":"PNG",
+"47494638":"GIF",
+"ffd8ff":"JPEG",
+"25504446":"PDF"
+}
 
-fileInput.addEventListener("change",handleFile);
+const fileInput=document.getElementById("fileInput")
+const dropzone=document.getElementById("dropzone")
 
-function handleFile(e){
+dropzone.onclick=()=>fileInput.click()
 
-const file = e.target.files[0];
+fileInput.addEventListener("change",loadFile)
 
-document.getElementById("fileName").innerText=file.name;
+dropzone.addEventListener("dragover",e=>e.preventDefault())
 
-const reader=new FileReader();
+dropzone.addEventListener("drop",e=>{
+e.preventDefault()
+fileInput.files=e.dataTransfer.files
+loadFile()
+})
 
-reader.onload=function(event){
+function loadFile(){
 
-originalBuffer=event.target.result;
+const file=fileInput.files[0]
+if(!file)return
 
-showHex(originalBuffer);
+document.getElementById("fileName").innerText=file.name
 
-};
+const reader=new FileReader()
 
-reader.readAsArrayBuffer(file);
+reader.onload=e=>{
+originalBuffer=e.target.result
+workingBytes=new Uint8Array(originalBuffer)
+
+detectType()
+showHex()
+createEditor()
+}
+
+reader.readAsArrayBuffer(file)
 
 }
 
-function showHex(buffer){
+function detectType(){
 
-const bytes=new Uint8Array(buffer);
+let hex=""
 
-let hex="";
+for(let i=0;i<4;i++){
+hex+=workingBytes[i].toString(16).padStart(2,"0")
+}
 
-for(let i=0;i<32;i++){
+let type="Unknown"
 
-hex+=bytes[i].toString(16).padStart(2,"0")+" ";
+for(let sig in knownTypes){
+
+if(hex.startsWith(sig)) type=knownTypes[sig]
 
 }
 
-document.getElementById("hexView").innerText=hex;
+document.getElementById("detectedType").innerText=type
 
 }
 
-function convertSignature(){
+function showHex(){
 
-if(!originalBuffer){
+let output=""
 
-alert("Upload file first");
+const length=Math.min(workingBytes.length,256)
 
-return;
+for(let i=0;i<length;i+=16){
+
+let row=i.toString(16).padStart(8,"0")+"  "
+
+for(let j=0;j<16;j++){
+
+if(i+j<length){
+
+row+=workingBytes[i+j].toString(16).padStart(2,"0")+" "
 
 }
 
-const type=document.getElementById("sigSelect").value;
+}
 
-const sig=signatures[type];
+output+=row+"\n"
 
-let bytes=new Uint8Array(originalBuffer);
+}
 
-let modified=new Uint8Array(bytes);
+document.getElementById("hexView").innerText=output
+
+}
+
+function createEditor(){
+
+const editor=document.getElementById("hexEditor")
+
+editor.innerHTML=""
+
+for(let i=0;i<16;i++){
+
+let input=document.createElement("input")
+
+input.className="hexEdit"
+input.value=workingBytes[i].toString(16).padStart(2,"0")
+
+input.onchange=()=>{
+workingBytes[i]=parseInt(input.value,16)
+showHex()
+detectType()
+}
+
+editor.appendChild(input)
+
+}
+
+}
+
+function changeSignature(){
+
+const type=document.getElementById("sigSelect").value
+const sig=signatures[type]
 
 for(let i=0;i<sig.length;i++){
 
-modified[i]=sig[i];
+workingBytes[i]=sig[i]
 
 }
 
-modifiedBuffer=modified;
-
-alert("Signature modified");
+showHex()
+detectType()
+createEditor()
 
 }
 
 function downloadFile(){
 
-if(!modifiedBuffer){
+const blob=new Blob([workingBytes])
 
-alert("Convert signature first");
+const url=URL.createObjectURL(blob)
 
-return;
+const a=document.createElement("a")
 
-}
+a.href=url
+a.download="arysig_modified"
 
-const blob=new Blob([modifiedBuffer]);
-
-const url=URL.createObjectURL(blob);
-
-const a=document.createElement("a");
-
-a.href=url;
-
-a.download="arysig_modified";
-
-a.click();
+a.click()
 
 }
 
-const dropzone=document.getElementById("dropzone");
+function toggleTheme(){
 
-dropzone.addEventListener("dragover",(e)=>{
+document.body.classList.toggle("light")
 
-e.preventDefault();
+localStorage.setItem("arysigTheme",
+document.body.classList.contains("light"))
 
-});
+}
 
-dropzone.addEventListener("drop",(e)=>{
+if(localStorage.getItem("arysigTheme")==="true"){
 
-e.preventDefault();
+document.body.classList.add("light")
 
-fileInput.files=e.dataTransfer.files;
-
-handleFile({target:{files:e.dataTransfer.files}});
-
-});
+}
 
 </script>
 
